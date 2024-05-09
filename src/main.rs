@@ -60,15 +60,16 @@ async fn main() {
                 Ok(r) => r,
             };
 
-            // for (name, _player) in log.players.iter() {
-            //     // for class in player.class_stats.iter() {
-            //     //     for weapon in class.weapon.iter() {
-            //     //         // let weapon = weapon.0;
-            //     //         // print!("{weapon}, ");
-            //     //     }
-            //     // }
-            //     print!("{}", name)
+            // println!("");
+            // for (id, player) in log.players.iter() {
+            //     for class in player.class_stats.iter() {
+            //         for weapon in class.weapon.iter() {
+            //             let weapon = weapon.0;
+            //             print!("{weapon}, ");
+            //         }
+            //     }
             // }
+
             println!("");
             for message in &log.chat {
                 println!("{} :  {}", message.name, message.message);
