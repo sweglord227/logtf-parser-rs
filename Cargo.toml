@@ -1,16 +1,28 @@
 [package]
 name = "logtf-parser"
 version = "0.1.0"
+description = "Searches, parses, and displays info about TF2 logs."
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tokio = { version = "1", features = ["full"] }
+clap = { version = "4.5.4", features = ["derive"] }
+futures = "0.3.30"
+log = "0.4.21"
 reqwest = { version = "0.11.23", features = ["json"] }
 serde = { version = "1.0.195", features = ["derive"] }
 serde_json = "1.0.111"
 simple_logger = "5.0.0"
-log = "0.4.21"
-futures = "0.3.30"
-clap = "4.5.4"
+tokio = { version = "1", features = ["full"] }
+
+# Enable a small amount of optimization in debug mode
+[profile.dev]
+opt-level = 1
+
+# Enable high optimizations for dependencies but not for our code:
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+codegen-units = 1

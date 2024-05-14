@@ -1,43 +1,66 @@
 pub mod structs;
 
-use crate::structs::Log;
-use std::env;
+use crate::structs::{log::Log, args::*};
 use std::fs::File;
 use std::io::{self, BufRead};
-use tokio::time::{sleep, Duration};
-use log::*;
+use clap::Parser;
 use futures::StreamExt;
+use log::*;
+use tokio::time::{sleep, Duration};
 
-const LOGURL: &str = "https://logs.tf/api/v1/log/";
+const LOGURL: &str = "https://logs.tf/api/v1/log";
+/// logs.tf limits the amount of queries per second.
+const LOGS_PER_QUERY: usize = 5;
+const NEW_STRING: String = String::new();
 
 
 #[tokio::main]
 async fn main() {
-    let _ = simple_logger::SimpleLogger::new().init();
-    let mut args: Vec<String> = env::args().collect();
+    if let Err(e) = simple_logger::SimpleLogger::new().init() { println!("logger failed to init: {e}")}
 
-    args.remove(0);
-    if args.first().is_none() { error!("give args"); return; };
-
-    let mut tasks = vec![vec![]];
-    for arg in args {
-        let lines = match read_lines(&arg) {
-            Ok(r) => r,
-            Err(e) => { warn!("Unable to open file [{arg}]. {e}"); continue; }
-        };
-        let (mut line_number, mut index) = (0, 0);
-        for line in lines {
-            line_number += 1;
-            if line_number == 7 {
-                line_number = 0;
-                index += 1;
-            }
-            if index == tasks.len() { tasks.push(vec![]); }
-            match line {
-                Ok(log_id) => tasks[index].push(log_id),
-                Err(e) => { warn!("{e}"); continue;
+    let mut tasks: Vec<[String; LOGS_PER_QUERY]> = vec![];
+    let Some(args) = Cli::parse().command else { return; };
+    match args {
+        Commands::Parse { files } => {
+            for file in files {
+                let lines = match read_lines(&file) {
+                    Ok(r) => r,
+                    Err(e) => { warn!("Unable to open file [{file}]. {e}"); return; }
+                };
+                let (mut line_number, mut index) = (0, 0);
+                for line in lines {
+                    if line_number == LOGS_PER_QUERY {
+                        line_number = 0;
+                        index += 1;
+                    }
+                    if index == tasks.len() { 
+                        tasks.push([NEW_STRING; LOGS_PER_QUERY]); 
+                    }
+                    match line {
+                        Ok(log_id) => tasks[index][line_number] = log_id,
+                        Err(e) => { warn!("{e}"); continue; }
+                    }
+                    line_number += 1;
                 }
             }
+        },
+        Commands::Search { title, map, uploader, players, limit, offset } => {
+            let mut search: String = "?".to_string();
+            if let Some(title) = title { 
+                if title.len() < 2 { error!("Title is less than 2 characters"); return; }
+                search += &("title=".to_string() + &title.replace(" ", "+") + "&") 
+            };
+            if let Some(map) = map { search += &("map=".to_string() + &map + "&") };
+            if let Some(uploader) = uploader { search += &("uploader=".to_string() + &uploader + "&") };
+            if let Some(players) = players { 
+                search += &"player=".to_string();
+                for player in players { search += &(player + &",".to_string()); }
+                search.pop();
+                search += "&";
+            };
+            if let Some(limit) = limit { search += &("limit=".to_string() + &limit.to_string() + "&") };
+            if let Some(offset) = offset { search += &("offset=".to_string() + &offset.to_string() + "&") };
+            info!("{LOGURL}{search}");
         }
     }
 
@@ -47,10 +70,11 @@ async fn main() {
     for task in tasks {
         let _ = sleep(Duration::from_secs_f64(1.0)).await;
         logs.push(futures::stream::iter(task.iter())
-            .map(|id| get_log(id.to_string()))
-            .buffer_unordered(task.len())
-            .collect()
-            .await);
+                  .map(|id| return get_log(id.to_string()))
+                  .buffer_unordered(task.len())
+                  .collect()
+                  .await
+                 );
     }
 
     for log in logs {
@@ -59,8 +83,8 @@ async fn main() {
                 Err(e) => { warn!("{e}"); continue; },
                 Ok(r) => r,
             };
-
             // println!("");
+
             // for (id, player) in log.players.iter() {
             //     for class in player.class_stats.iter() {
             //         for weapon in class.weapon.iter() {
@@ -70,7 +94,6 @@ async fn main() {
             //     }
             // }
 
-            println!("");
             for message in &log.chat {
                 println!("{} :  {}", message.name, message.message);
             }
@@ -86,5 +109,5 @@ fn read_lines(filename: &String) -> io::Result<io::Lines<io::BufReader<File>>> {
 
 async fn get_log(id: String) -> Result<Log, Box<dyn std::error::Error>> {
     debug!("Getting log: {id}");
-    return Ok(serde_json::from_str(&reqwest::get(LOGURL.to_owned() + &id).await?.text().await?)?);
+    return Ok(serde_json::from_str(&reqwest::get(("/".to_string() + LOGURL).to_owned() + &id).await?.text().await?)?);
 }
