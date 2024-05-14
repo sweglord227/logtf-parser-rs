@@ -60,7 +60,7 @@ async fn main() {
             };
             if let Some(limit) = limit { search += &("limit=".to_string() + &limit.to_string() + "&") };
             if let Some(offset) = offset { search += &("offset=".to_string() + &offset.to_string() + "&") };
-            info!("{LOGURL}{search}");
+            let search = get_log(search).await;
         }
     }
 
