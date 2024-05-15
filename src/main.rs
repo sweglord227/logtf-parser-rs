@@ -1,6 +1,6 @@
 pub mod structs;
 
-use crate::structs::{log::Log, args::*};
+use crate::structs::{log::Log, search::SearchResponse, args::*};
 use std::fs::File;
 use std::io::{self, BufRead};
 use clap::Parser;
@@ -60,7 +60,7 @@ async fn main() {
             };
             if let Some(limit) = limit { search += &("limit=".to_string() + &limit.to_string() + "&") };
             if let Some(offset) = offset { search += &("offset=".to_string() + &offset.to_string() + "&") };
-            let search = get_log(search).await;
+            let search = get_search(search).await;
         }
     }
 
@@ -70,11 +70,11 @@ async fn main() {
     for task in tasks {
         let _ = sleep(Duration::from_secs_f64(1.0)).await;
         logs.push(futures::stream::iter(task.iter())
-                  .map(|id| return get_log(id.to_string()))
-                  .buffer_unordered(task.len())
-                  .collect()
-                  .await
-                 );
+            .map(|id| return get_log(id.to_string()))
+            .buffer_unordered(task.len())
+            .collect()
+            .await
+        );
     }
 
     for log in logs {
@@ -109,5 +109,12 @@ fn read_lines(filename: &String) -> io::Result<io::Lines<io::BufReader<File>>> {
 
 async fn get_log(id: String) -> Result<Log, Box<dyn std::error::Error>> {
     debug!("Getting log: {id}");
-    return Ok(serde_json::from_str(&reqwest::get(("/".to_string() + LOGURL).to_owned() + &id).await?.text().await?)?);
+    let url = LOGURL.to_owned() + "/" + &id;
+    return Ok(serde_json::from_str(&reqwest::get(url).await?.text().await?)?);
+}
+
+async fn get_search(search_query: String) -> Result<SearchResponse, Box<dyn std::error::Error>> {
+    debug!("Querying for logs with: {search_query}");
+    let url = LOGURL.to_owned() + &search_query;
+    return Ok(serde_json::from_str(&reqwest::get(&url).await?.text().await?)?);
 }

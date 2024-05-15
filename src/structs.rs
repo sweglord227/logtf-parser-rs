@@ -51,6 +51,16 @@ pub mod args {
     // }
 }
 
+pub mod search {
+    use serde::Deserialize;
+    // use std::collections::HashMap;
+
+    #[derive(Deserialize, Debug)]
+    pub struct SearchResponse {
+
+    }
+}
+
 /// Includes all data and serializations for [logs.tf](https://logs.tf/) api
 pub mod log {
     use serde::Deserialize;
