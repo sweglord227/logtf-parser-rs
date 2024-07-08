@@ -30,10 +30,10 @@ pub mod args {
             map: Option<String>,
             /// Uploader SteamID64
             #[arg(short, long)]
-            uploader: Option<String>,
+            uploader: Option<u64>,
             /// One or more player SteamID64 values
             #[arg(short, long, num_args = 1..)]
-            players: Option<Vec<String>>,
+            players: Option<Vec<u64>>,
             /// Limit results (default 1000, maximum 10000)
             #[arg(short, long)]
             limit: Option<u32>,
@@ -42,27 +42,58 @@ pub mod args {
             offset: Option<u32>,
         }
     }
+}
 
-    // impl From<String> for Commands {
-    //     fn from(value: String) -> Self {
-    //         // todo!("to string")
-    //         return Self::Parse{ file_name: value }
-    //     }
-    // }
+pub mod stats {
+    #[derive(Default)]
+    pub struct Stats {
+        pub name: Vec<String>,
+        pub kills: u32,
+    }
 }
 
 pub mod search {
     use serde::Deserialize;
+    use steamid_ng::SteamID;
     // use std::collections::HashMap;
 
     #[derive(Deserialize, Debug)]
     pub struct SearchResponse {
+        pub results: u32,
+        pub total: u32,
+        pub parameters: Parameters,
+        pub logs: Vec<SearchResults>,
+    }
 
+    #[derive(Deserialize, Debug)]
+    pub struct Parameters {
+            pub title: Option<String>,
+            /// Exact name of a map (pl_upward).
+            pub map: Option<String>,
+            /// Uploader SteamID64
+            pub uploader: Option<SteamID>,
+            /// One or more player SteamID64 values
+            pub players: Option<Vec<SteamID>>,
+            /// Limit results (default 1000, maximum 10000)
+            pub limit: Option<u32>,
+            /// Offset results (default 0)
+            pub offset: Option<u32>,
+    }
+
+    #[derive(Deserialize, Debug)]
+    pub struct SearchResults {
+        pub id: u32,
+        pub title: String,
+        pub map: String,
+        pub date: u32,
+        pub views: u32,
+        pub players: u8,
     }
 }
 
 /// Includes all data and serializations for [logs.tf](https://logs.tf/) api
 pub mod log {
+    // use steamid_ng::SteamID;
     use serde::Deserialize;
     use std::collections::HashMap;
     use log_internal::*;
